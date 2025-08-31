@@ -25,8 +25,7 @@ iden-challenge/
 │   ├── auth.py               # Smart authentication management
 │   ├── navigation.py         # Wizard navigation handler
 │   └── data_extraction.py    # Complete product extraction
-├── iden_challenge.py         # Main automation script
-├── requirements.txt          # Dependencies (Playwright only)
+├── iden_challenge.py         # Main automation script 
 └── README.md                 # This documentation
 ```
 
