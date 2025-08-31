@@ -3,6 +3,7 @@ from pathlib import Path
 from playwright.sync_api import Page
 import re
 import time
+import sys
 
 class DataExtractor:
     def __init__(self, output_path="data/products.json"):
@@ -11,37 +12,28 @@ class DataExtractor:
     
     def extract_products(self, page: Page):
         products = []
-        
         page.wait_for_selector("div.p-4.border.rounded-md", timeout=15000)
         time.sleep(0.5)
         
         total_products = self._get_total_product_count(page)
         print(f"Total products to extract: {total_products}")
         
-        milestones = {}
-        if total_products != float('inf'):
-            milestones = {
-                total_products // 4: "25%",
-                total_products // 2: "50%",
-                (total_products * 3) // 4: "75%",
-                total_products: "100%"
-            }
-        
         last_product_count = 0
         no_change_counter = 0
-        milestone_printed = set()
         
         while True:
             product_elements = page.query_selector_all("div.p-4.border.rounded-md")
             current_count = len(product_elements)
             
-            # Print milestone based on loaded elements
-            for milestone_count, milestone_label in milestones.items():
-                if current_count >= milestone_count and milestone_count not in milestone_printed:
-                    milestone_printed.add(milestone_count)
-                    if(current_count>total_products):
-                        current_count = total_products
-                    print(f"Loaded {milestone_label}: {current_count}/{total_products} products")
+            # Dynamic single-line loading progress
+            bar_length = 50
+            filled_length = int(bar_length * current_count // total_products)
+            bar = '/' * filled_length
+            percent = int((current_count / total_products) * 100)
+            if(current_count>=total_products):
+                current_count = total_products
+            sys.stdout.write(f"\r{bar} {percent}% ({current_count}/{total_products})")
+            sys.stdout.flush()
             
             if current_count >= total_products:
                 product_elements = product_elements[:total_products]
@@ -60,8 +52,7 @@ class DataExtractor:
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 time.sleep(0.3)
         
-        # Extract data from all collected elements
-        print("Wait, till all products get extracted...")
+        print("\nWait, till all products get extracted...")
         for element in product_elements:
             try:
                 product_data = self._extract_product_data(element)
@@ -70,7 +61,7 @@ class DataExtractor:
                 continue
         
         print(f"Extraction completed: {len(products)} products")
-        print("wait, till the prodouct is saving in json...")
+        print("Wait, till the product is saving in json...")
         
         return products
     
@@ -104,53 +95,51 @@ class DataExtractor:
             return float('inf')
     
     def _extract_product_data(self, element):
-     try:
-        product_data = element.evaluate(r"""
-            (el) => {
-                const name = el.querySelector('h3.font-medium')?.textContent?.trim() || 'Unknown';
-                const idCategoryEl = el.querySelector('div.flex.items-center.text-sm.text-muted-foreground');
-                const idCategoryText = idCategoryEl?.textContent?.trim() || '';
-                
-                // Try multiple ID patterns
-                let id = -1;
-                const patterns = [/ID:\s*(\d+)/i, /#(\d+)/, /id:\s*(\d+)/i];
-                for (let pat of patterns) {
-                    const match = idCategoryText.match(pat);
-                    if (match) { id = parseInt(match[1]); break; }
+        try:
+            product_data = element.evaluate(r"""
+                (el) => {
+                    const name = el.querySelector('h3.font-medium')?.textContent?.trim() || 'Unknown';
+                    const idCategoryEl = el.querySelector('div.flex.items-center.text-sm.text-muted-foreground');
+                    const idCategoryText = idCategoryEl?.textContent?.trim() || '';
+                    
+                    let id = -1;
+                    const patterns = [/ID:\s*(\d+)/i, /#(\d+)/, /id:\s*(\d+)/i];
+                    for (let pat of patterns) {
+                        const match = idCategoryText.match(pat);
+                        if (match) { id = parseInt(match[1]); break; }
+                    }
+                    
+                    const category = idCategoryText.includes('•') ? idCategoryText.split('•').pop().trim() : 'Unknown';
+                    const details = {};
+                    const detailItems = el.querySelectorAll('div.flex.flex-col.items-center');
+                    detailItems.forEach(item => {
+                        const label = item.querySelector('span.text-muted-foreground')?.textContent?.trim();
+                        const value = item.querySelector('span.font-medium')?.textContent?.trim();
+                        if (label && value) details[label.toLowerCase().replace(/\s+/g,'_')] = value;
+                    });
+                    
+                    return {
+                        id: id,
+                        name: name,
+                        category: category,
+                        material: details.material || 'Unknown',
+                        size: details.size || 'Unknown',
+                        warranty: details.warranty || 'Unknown',
+                        last_updated: details.updated || 'Unknown'
+                    };
                 }
-                
-                const category = idCategoryText.includes('•') ? idCategoryText.split('•').pop().trim() : 'Unknown';
-                const details = {};
-                const detailItems = el.querySelectorAll('div.flex.flex-col.items-center');
-                detailItems.forEach(item => {
-                    const label = item.querySelector('span.text-muted-foreground')?.textContent?.trim();
-                    const value = item.querySelector('span.font-medium')?.textContent?.trim();
-                    if (label && value) details[label.toLowerCase().replace(/\s+/g,'_')] = value;
-                });
-                
-                return {
-                    id: id,
-                    name: name,
-                    category: category,
-                    material: details.material || 'Unknown',
-                    size: details.size || 'Unknown',
-                    warranty: details.warranty || 'Unknown',
-                    last_updated: details.updated || 'Unknown'
-                };
+            """)
+            return product_data
+        except:
+            return {
+                "id": -1,
+                "name": "Unknown",
+                "category": "Unknown",
+                "material": "Unknown",
+                "size": "Unknown",
+                "warranty": "Unknown",
+                "last_updated": "Unknown"
             }
-        """)
-        return product_data
-     except:
-        return {
-            "id": -1,
-            "name": "Unknown",
-            "category": "Unknown",
-            "material": "Unknown",
-            "size": "Unknown",
-            "warranty": "Unknown",
-            "last_updated": "Unknown"
-        }
-
     
     def save_to_json(self, products):
         valid_products = [p for p in products if p["id"] != -1 and p["name"] != "Unknown"]
