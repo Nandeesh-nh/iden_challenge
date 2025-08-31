@@ -1,0 +1,3 @@
+{
+    "current_user": "{\"id\":\"a5d0a733-82fd-4a53-ac31-b4b428ad502b\",\"email\":\"nandeesh.j.a@campusuvce.in\",\"role\":\"candidate\",\"config\":{\"fields\":[\"id\",\"material\",\"dimensions\",\"warranty\",\"name\",\"color\",\"weight\",\"price\",\"manufacturer\"],\"layout\":\"list\",\"pathType\":\"stepper\",\"fieldNames\":{\"id\":\"ID\",\"sku\":\"SKU\",\"name\":\"Item\",\"color\":\"Color\",\"price\":\"Price\",\"stock\":\"Stock\",\"rating\":\"Rating\",\"weight\":\"Weight (kg)\",\"category\":\"Category\",\"material\":\"Material\",\"warranty\":\"Warranty\",\"dimensions\":\"Size\",\"description\":\"Description\",\"lastUpdated\":\"Last Updated\",\"manufacturer\":\"Manufacturer\"},\"totalItemCount\":1475,\"fieldRenderers\":{}}}"
+}
